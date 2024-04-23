@@ -1,0 +1,12 @@
+__pycache__
+.vscode
+TODO.md
+
+VisBeatAssets/*
+src/fig/*
+src/flow/*
+src/image/*
+src/optical_flow/*
+videos_audio/*
+
+log/log.log
