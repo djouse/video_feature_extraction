@@ -8,5 +8,6 @@ src/flow/*
 src/image/*
 src/optical_flow/*
 videos_audio/*
-
+video/*.mp4
+video/pre_processing/*.mp4
 log/log.log
