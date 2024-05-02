@@ -1,4 +1,18 @@
 # Video Feature Extraction:
+    
+    This tool converts videos to 360p and retrieves, optical flow magnitude, scene cuts, estimation of musical tempo using visbeats3, and saves this information for a given video file.
+
+## Retrieved Features
+------------------------------------
+
+    This code retrieves the following video information:
+        - optical flow
+        - motion saliency
+        - timing information (beat-time mapping)
+
+## TODO 
+------------------------------------
+    Multi-Threading in feature retrievel and in video conversion and directory creation
 
 ## Project Overview
 ------------------------------------
@@ -14,10 +28,3 @@
             a) First, add a methronome or a signal to the 1 in the beat  TODO
             b) Then, add generated music to the beat with MIDI  TODO
 
-## Retrieved Features
-------------------------------------
-
-    This code retrieves the following video information:
-        - optical flow
-        - motion saliency
-        - timing information (beat-time mapping)

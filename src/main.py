@@ -39,6 +39,7 @@ from scenedetect import detect, ContentDetector
 
 import logging 
 import os
+import threading
 import sys
 import json
 from setup import args
@@ -46,7 +47,7 @@ from utils import makedirs, plot_multiple_curves, video_frames_to_grayscale, plo
 
 logger = logging.getLogger(__name__)
 
-TIME_PER_BAR = 2  # 暂定2s一小节
+TIME_PER_BAR = 2
 
 class videoProcessor():
     def __init__(self, video, video_dir) -> None:
@@ -69,7 +70,6 @@ class videoProcessor():
         makedirs([video_dir, self.flow_dir, self.fig_dir, self.image_dir, self.optical_flow_dir])
 
     def getOpticalFlow(self, method_choice):
-        
         assert os.path.exists(self.video_path)
         
         metadata = skvideo.io.ffprobe(self.video_path)
@@ -99,6 +99,7 @@ class videoProcessor():
         
         np.savez(os.path.join(self.flow_dir, os.path.basename(self.video_path).split('.')[0] + '.npz'),
                flow=np.asarray(self.flow))
+        
         return
     
     def denseOpticalFlowPerBar(self, flow_magnitude_list):
@@ -111,13 +112,7 @@ class videoProcessor():
         
         self._flow_per_bar_no_beat = temp
     
-        plot_multiple_curves(self.video_path, self.fig_dir, 
-                             x = np.arange(0, len(flow_magnitude_list)),
-                             y1 = flow_magnitude_list,
-                             y2 = temp,
-                             y1_label='Flow Magnitude',
-                             y2_label='Mean Flow/Bar',
-                             name="Optical Flow Magnitude")
+        return
 
     def denseOpticalFlow(self, method, video, params=[], to_gray=False):
 
@@ -144,20 +139,22 @@ class videoProcessor():
         # return optical_flow, flow_magnitude_list
         return flow_magnitude_list
 
-    def getVideoBeat(self, resolution=1, visualize=True):
+    def getVideoBeat(self):
 
         logger.debug("Retrieving Video Beat ...")
         vb.Video.getVisualTempo = vb.Video_CV.getVisualTempo
 
         video = os.path.basename(self.video_path)
-        vlog = vb.PullVideo(name=video, source_location=os.path.join(self.video_path), max_height=360)
-        vbeats = vlog.getVisualBeatSequences(search_window=None)[0]
+        self.vlog = vb.PullVideo(name=video, source_location=os.path.join(self.video_path), max_height=360)
+        vbeats = self.vlog.getVisualBeatSequences(search_window=None)[0]
 
-        tempo, beats = vlog.getVisualTempo()
-        logger.debug("Tempo is", tempo)
-        vbeats_list = []
+        self.tempo, self.beats = self.vlog.getVisualTempo()
+        logger.debug("Tempo is", self.tempo)
+        self.vbeats_list = []
+
+        resolution=1
         for vbeat in vbeats:
-            i_beat = round(vbeat.start / 60 * tempo * 4)
+            i_beat = round(vbeat.start / 60 * self.tempo * 4)
             vbeat_dict = {
                 'start_time': vbeat.start,
                 'bar'       : int(i_beat // 16),
@@ -165,13 +162,24 @@ class videoProcessor():
                 'weight'    : vbeat.weight
             }
             if vbeat_dict['tick'] % resolution == 0:  # only select vbeat that lands on the xth tick
-                vbeats_list.append(vbeat_dict)
-        logger.debug('%d / %d vbeats selected' % (len(vbeats_list), len(vbeats)))
+                self.vbeats_list.append(vbeat_dict)
+        logger.debug('%d / %d vbeats selected' % (len(self.vbeats_list), len(vbeats)))
 
+        return
+    
+    def getSceneCuts(self):
+        self.scene_list = detect(self.video_path, ContentDetector())
+
+        return
+    
+    def saveFeatures(self):
+        logger.debug("Retrieving Retrieved Features ...")
+     
+        video = os.path.basename(self.video_path)
         npz = np.load("flow/" + video.replace('.mp4', '.npz'), allow_pickle=True)
         flow_magnitude_list = npz['flow']
-        fps = round(vlog.n_frames() / float(vlog.getDuration()))
-        fpb = int(round(fps * 4 * 60 / tempo))  # frame per bar
+        fps = round(self.vlog.n_frames() / float(self.vlog.getDuration()))
+        fpb = int(round(fps * 4 * 60 / self.tempo))  # frame per bar
 
         fmpb = []  # flow magnitude per bar
         temp = np.zeros((len(flow_magnitude_list)))
@@ -185,34 +193,23 @@ class videoProcessor():
         #        flow=np.asarray(temp))
 
         self.metadata = {
-            'duration'              : vlog.getDuration(),
-            'tempo'                 : tempo,
-            'vbeats'                : vbeats_list,
+            'duration'              : self.vlog.getDuration(),
+            'tempo'                 : self.tempo,
+            'vbeats'                : self.vbeats_list,
             'flow_magnitude_per_bar': fmpb,
         }    
 
         with open("metadata.json", "w") as f:
             json.dump(self.metadata, f)
 
-        # Get scene cuts
-        self.scene_list = detect(self.video_path, ContentDetector())
-
         plot_all_info(self.n_frames, self.flow,self._flow_per_bar, self._flow_per_bar_no_beat, self.scene_list, self.fig_dir)
-
-        logger.debug("Done Retrieving Video Beat")
-
-        return
-    
-    def saveFeatures(self):
-        logger.debug("Retrieving Retrieved Features ...")
         np.savez(os.path.join(self.optical_flow_dir, os.path.basename(self.video_path).split('.')[0] + '.npz'),
                                                                                 _flow=self.flow, 
                                                                                 _flow_per_bar = self._flow_per_bar, 
                                                                                 _flow_per_bar_no_beat= self._flow_per_bar_no_beat)
         logger.debug("Done Retrieving Features.")
-
-                                                                        
-
+        
+        return
 
 class Runner(): 
     def __init__(self) -> None:
@@ -224,16 +221,18 @@ class Runner():
 
     def run(self):
         if not self.useGUI:
-            #retrieve features from the video and show them graphically
+            # Start threads to run the specified methods concurrently
             logger.debug("Using Graphical Plots.\nTo use GUI parse --gui argument")
             logger.info("Processing video...")
+
             video = videoProcessor(self.video, self.video_dir)
+            
             video.getOpticalFlow(self.optical_flow_method)
             video.getVideoBeat()
+            video.getSceneCuts()
             video.saveFeatures()
+    
 
 if __name__ == '__main__':
     runner = Runner()
     runner.run()
-    #1 - start replacing the optical_flow.py in here to have the conversion ready with plots TODO
-    # Make sure all beat-timing information is set up properly and fix any issues if needed
