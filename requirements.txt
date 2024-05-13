@@ -1,0 +1,9 @@
+matplotlib==3.3.4
+numpy==1.19.0
+opencv_python_headless==4.9.0.80
+pygame==2.5.2
+PyQt5==5.15.10
+PyQt5_sip==12.13.0
+scenedetect==0.6.3
+scikit_video==1.1.11
+visbeat3==1.0.1
