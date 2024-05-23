@@ -31,19 +31,16 @@ Classes
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import MultipleLocator
 import skvideo.io
 import visbeat3 as vb
 from scenedetect import detect, ContentDetector
 
 import logging 
 import os
-import threading
 import sys
 import json
 from setup import args
-from utils import makedirs, plot_multiple_curves, video_frames_to_grayscale, plot_all_info
+from utils import makedirs, video_frames_to_grayscale, plot_all_info
 
 logger = logging.getLogger(__name__)
 
