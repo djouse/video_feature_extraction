@@ -808,6 +808,7 @@ if(Video_CV.USING_OPENCV):
     Video.getForwardVisibleImpactEnvelope = Video_CV.getForwardVisibleImpactEnvelope;
     Video.getDirectionalFlux = Video_CV.getDirectionalFlux;
     Video.getVisualTempogram = Video_CV.getVisualTempogram;
+    Video.getVisualTempo = Video_CV.getVisualTempo;
     Video.getCutEvents = Video_CV.getCutEvents;
     Video.computeImpactEnvelope = Video_CV.computeImpactEnvelope;
     Video.computeDirectogramPowers = Video_CV.computeDirectogramPowers;
